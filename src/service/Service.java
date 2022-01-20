@@ -34,10 +34,9 @@ public class Service {
 		int numRelationships = 0;
 		for (int i = 0; i < containedClasses.size(); i++) {
 			ServiceClass currentClass = containedClasses.get(i);
-			numRelationships += containedClasses.get(i).getNumRelationship();
-			for (int j = 0; j < i; j++) {
+			for (int j = i; j < containedClasses.size(); j++) {
 				if (currentClass.hasRelationship(containedClasses.get(j)))
-					numRelationships--;
+					numRelationships++;
 			}
 		}
 
@@ -45,5 +44,15 @@ public class Service {
 		int numPossible = UtilMaths.combinations(numClasses, 2);
 
 		return numRelationships / (float) numPossible;
+	}
+	
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(name).append(" ").append(cohesion).append("\n");
+		for (ServiceClass aClass : containedClasses) {
+			sb.append(aClass.getName()).append("\n");
+		}
+		return sb.toString();
 	}
 }

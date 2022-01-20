@@ -5,46 +5,55 @@ import java.util.Arrays;
 
 import service.Service;
 import service.classes.ServiceClass;
-import service.util.UtilMaths;
 
 public class ServiceIdentifier {
 
+	private ArrayList<Service> originalServices;
 	private ArrayList<ServiceClass> classes;
 	private ArrayList<Service> services;
 	private final float cohesionCutOff;
 
-	public ServiceIdentifier(ArrayList<ServiceClass> classes) {
-		this(classes, 0.75f);
+	public ServiceIdentifier(ArrayList<Service> originalServices) {
+		this(originalServices, 0.75f);
 	}
 
-	public ServiceIdentifier(ArrayList<ServiceClass> classes, float cohesionCutOff) {
-		this.classes = classes;
+	public ServiceIdentifier(ArrayList<Service> originalServices, float cohesionCutOff) {
+		this.originalServices = originalServices;
+		classes = new ArrayList<ServiceClass>();
+		for (Service service : originalServices) {
+			for (ServiceClass aClass : service.getClasses()) {
+				if (!classes.contains(aClass))
+					classes.add(aClass);
+			}
+		}
 		this.cohesionCutOff = cohesionCutOff;
 		services = new ArrayList<Service>();
 	}
 
-	public ArrayList<Service> calculateServiceCohesion(ArrayList<ServiceClass> classes) {
+	public ArrayList<Service> identifyServices() {
+
+		if (classes.size() == 0)
+			return null;
 
 		// Step 1
 		addSingletonServices();
-		ArrayList<Service> originalServices;
+		int numStepOneServices;
 		do {
-			originalServices = new ArrayList<Service>(services);
-			int numStepOneServices = services.size();
+			numStepOneServices = services.size();
 			// Step 2
-			addAllPossiblePairs();
+			addAllPossiblePairs(numStepOneServices);
 			// Step 3
 			removeStepTwoServicesBelowCutoff(numStepOneServices);
 			// Step 4
 			Service selectedService = getHighestCohesionService();
 			// Step 5
-			removeConstituentServices(selectedService.getName());
+			removeConstituentServices(selectedService.getName(), numStepOneServices);
 			// Step 6
 			removeDuplicateConstituentClasses(selectedService);
 			// Step 7
-			removeAllNonUniqueBelowCutOff();
+			removeAllNonUniqueServicesBelowCutOff();
 			// Step 8
-		} while (services.size() > 1);
+		} while (services.size() - numStepOneServices > 1);
 		// Step 9
 		float originalCohesion = averageServiceCohesion(originalServices);
 		float newCohesion = averageServiceCohesion(services);
@@ -57,15 +66,15 @@ public class ServiceIdentifier {
 	}
 
 	private void addSingletonServices() {
-		for (int i = 0; i < services.size(); i++) {
+		for (int i = 0; i < classes.size(); i++) {
 			services.add(new Service("Service" + i, new ArrayList<ServiceClass>(Arrays.asList(classes.get(i)))));
 		}
 	}
 
-	private void addAllPossiblePairs() {
-		for (int i = 0; i < services.size(); i++) {
+	private void addAllPossiblePairs(int numStepOneServices) {
+		for (int i = 0; i < numStepOneServices; i++) {
 			Service service1 = services.get(i);
-			for (int j = i; j < services.size(); j++) {
+			for (int j = i+1; j < numStepOneServices; j++) {
 				Service service2 = services.get(j);
 				ArrayList<ServiceClass> newClasses = new ArrayList<ServiceClass>();
 				newClasses.addAll(service1.getClasses());
@@ -79,9 +88,10 @@ public class ServiceIdentifier {
 		for (int i = numStepOneServices; i < services.size(); i++) {
 			Service service = services.get(i);
 			if (service.getCohesion() < cohesionCutOff) {
-				services.remove(service);
+				services.remove(i--);
 			}
 		}
+		services.trimToSize();
 	}
 
 	private Service getHighestCohesionService() {
@@ -97,30 +107,30 @@ public class ServiceIdentifier {
 		return services.get(highestCohesionServiceIndex);
 	}
 
-	public void removeConstituentServices(String serviceName) {
-		for (int i = 0; i < services.size(); i++) {
+	public void removeConstituentServices(String serviceName, int numStepOneServices) {
+		boolean deleted = false;
+		for (int i = 0; i < numStepOneServices; i++) {
 			String serviceName1 = services.get(i).getName();
-			for (int j = i; j < services.size(); j++) {
-				String serviceName2 = classes.get(j).getName();
+			for (int j = 0; j < numStepOneServices; j++) {
+				String serviceName2 = services.get(j).getName();
 				if (serviceName.equals(serviceName1 + " " + serviceName2)) {
-					services.set(i, null);
 					services.set(j, null);
+					services.set(i, null);
+					deleted = true;
+					break;
 				}
 			}
+			if (deleted)
+				break;
 		}
-		int numRemoved = 0;
-		while (services.remove(null));
+		while (services.remove(null)) {
+		}
 		services.trimToSize();
 		/*
-		for (int i = 0; i < services.size() - numRemoved; i++) {
-			if (services.get(i) == null) {
-				services.remove(i);
-				numRemoved++;
-				i--;
-			}
-		}
-		*/
-		
+		 * int numRemoved = 0; for (int i = 0; i < services.size() - numRemoved; i++) {
+		 * if (services.get(i) == null) { services.remove(i); numRemoved++; i--; } }
+		 */
+
 	}
 
 	public void removeDuplicateConstituentClasses(Service selectedService) {
@@ -131,14 +141,14 @@ public class ServiceIdentifier {
 			for (ServiceClass aClass : selectedService.getClasses()) {
 				ArrayList<ServiceClass> serviceClasses = service.getClasses();
 				if (classes.contains(aClass)) {
-					classes.remove(aClass);
-					service = new Service(service.getName(), serviceClasses);
+					serviceClasses.remove(aClass);
+					services.set(i, new Service(service.getName(), serviceClasses));
 				}
 			}
 		}
 	}
 
-	public void removeAllNonUniqueBelowCutOff() {
+	public void removeAllNonUniqueServicesBelowCutOff() {
 		int[] classOccurances = new int[classes.size()];
 		for (int i = 0; i < classes.size(); i++) {
 			for (Service service : services) {
@@ -146,7 +156,8 @@ public class ServiceIdentifier {
 					classOccurances[i]++;
 			}
 		}
-		for (Service service : services) {
+		for (int i = 0; i < services.size(); i++) {
+			Service service = services.get(i);
 			if (service.getCohesion() > cohesionCutOff)
 				continue;
 			boolean uniqueClass = false;
@@ -156,10 +167,15 @@ public class ServiceIdentifier {
 					break;
 				}
 			}
-			if (!uniqueClass)
-				service = null;
+			if (!uniqueClass) {
+				for (ServiceClass aClass : service.getClasses()) {
+					classOccurances[classes.indexOf(aClass)]--;
+				}
+				services.set(i, null);
+			}
 		}
-		while (services.remove(null));
+		while (services.remove(null)) {
+		}
 		services.trimToSize();
 	}
 

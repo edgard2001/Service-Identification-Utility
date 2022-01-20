@@ -14,6 +14,14 @@ public class ServiceClass {
 		relatedClasses = new ArrayList<ServiceClass>();
 	}
 
+	public String getName() {
+		return name;
+	}
+	
+	public ServiceClassType getType() {
+		return type;
+	}
+	
 	public static void addBidirectionalClassRelationship(ServiceClass class1, ServiceClass class2) {
 		if (class1.equals(class2))
 			return;
@@ -22,17 +30,13 @@ public class ServiceClass {
 		if (!class2.relatedClasses.contains(class1))
 			class2.relatedClasses.add(class1);
 	}
-
-	public int getNumRelationship() {
+	
+	public int getNumRelationships() {
 		return relatedClasses.size();
 	}
 
 	public boolean hasRelationship(ServiceClass aClass) {
 		return relatedClasses.contains(aClass);
-	}
-
-	public String getName() {
-		return name;
 	}
 
 }
