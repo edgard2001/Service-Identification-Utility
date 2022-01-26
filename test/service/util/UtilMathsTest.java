@@ -38,6 +38,7 @@ class UtilMathsTest {
 		assertEquals(28, UtilMaths.combinations(8,2));
 		assertEquals(36, UtilMaths.combinations(9,2));
 		assertEquals(45, UtilMaths.combinations(10,2));
+		assertEquals(55, UtilMaths.combinations(11,2));
 	}
 	
 	
